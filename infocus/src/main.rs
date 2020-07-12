@@ -81,10 +81,10 @@ fn new_rng() -> random::Default {
 }
 
 /// Generates a random color
-fn random_color<T: random::Source>(source: &mut T, r: bool, g: bool, b: bool) -> Color {
-    Color::new(if r { source.read::<u8>() } else { 0 },
-               if g { source.read::<u8>() } else { 0 },
-               if b { source.read::<u8>() } else { 0 })
+fn random_color<T: random::Source>(source: &mut T) -> Color {
+    Color::new(source.read::<u8>(),
+               source.read::<u8>(),
+               source.read::<u8>())
 }
 
 fn main() {
@@ -101,34 +101,40 @@ fn main() {
     }
 
     let mut framebuffer = Framebuffer::new(CANVAS_SIZE as u32, CANVAS_SIZE as u32, Color::white());
-    let black = Color::black();
+    let mut maskbuffer = Maskbuffer::new(CANVAS_SIZE as u32, CANVAS_SIZE as u32, 0);
 
-    for _ in 0..630 {
+    loop {
+        maskbuffer.fill(0);
+        for x in 0..CANVAS_SIZE {
+            for y in 0..CANVAS_SIZE {
+                framebuffer.point_at(x, y, random_color(&mut rng));
+            }
+        }
+
         for lens in lenses.iter_mut() {
             lens.step();
         }
 
-        for x in 0..CANVAS_SIZE {
-            for y in 0..CANVAS_SIZE {
-                let mut focus = 0;
-                for lens in lenses.iter() {
-                    if lens.contains(x, y) {
-                        focus += 1;
+        for lens in lenses.iter() {
+            for x in lens.left()..lens.right() {
+                for y in lens.top()..lens.bottom() {
+                    if !lens.contains(x, y) {
+                        continue
                     }
-                }
 
-                let pixel =
-                    if focus == 0 {
-                        black
-                    } else {
-                        random_color(&mut rng,
-                                     focus == 1 || focus > 3,
-                                     focus == 2 || focus > 3,
-                                     focus >= 3)
-                    };
-                framebuffer.point_at(x, y, pixel);
+                    maskbuffer.update(x, y, |v| v + 1);
+                }
             }
         }
+
+        framebuffer.mask(&maskbuffer, |mask, (r, g, b)|
+                         match mask {
+                             0 => (0, 0, 0),
+                             1 => (r, 0, 0),
+                             2 => (0, g, 0),
+                             3 => (0, 0, b),
+                             _ => (r, g, b),
+                         });
 
         framebuffer.write(&mut std::io::stdout()).unwrap();
     }

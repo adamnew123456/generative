@@ -34,6 +34,51 @@ impl Color {
     }
 }
 
+/// An array of raw values which allows for basic batch processing on a
+/// Framebuffer
+pub struct Maskbuffer {
+    mask: Vec<u8>,
+    width: u32,
+    height: u32,
+}
+
+impl Maskbuffer {
+    pub fn new(width: u32, height: u32, full: u8) -> Maskbuffer {
+        let mut mask = Vec::with_capacity((width * height) as usize);
+        mask.resize((width * height) as usize, 0);
+
+        let mut fb = Maskbuffer {
+            mask,
+            width,
+            height,
+        };
+
+        fb.fill(full);
+        fb
+    }
+
+    /// Overwrites the entire maskbuffer with the given color
+    pub fn fill(&mut self, value: u8) {
+        for pixel in 0..self.mask.len() {
+            self.mask[pixel] = value;
+        }
+    }
+
+    /// Updates the value of the maskbuffer at the given location
+    pub fn update<T: Fn(u8) -> u8>(&mut self, x: i64, y: i64, func: T) {
+        if x < 0 || x >= self.width as i64 {
+            return
+        }
+
+        if y < 0 || y >= self.height as i64 {
+            return
+        }
+
+        let offset = (y * self.width as i64) + x;
+        self.mask[offset as usize] = func(self.mask[offset as usize]);
+    }
+}
+
 /// An array of pixels with fixed dimensions
 pub struct Framebuffer {
     pixels: Vec<u8>,
@@ -75,6 +120,21 @@ impl Framebuffer {
         fb
     }
 
+    /// Applies the given maskbuffer to this buffer, updating the value of each
+    /// pixel according to the given function and value in the mask
+    pub fn mask<T: Fn(u8, (u8, u8, u8)) -> (u8, u8, u8)>(&mut self, mask: &Maskbuffer, func: T) {
+        for pixel in 0..(self.width * self.height) {
+            let index = pixel as usize;
+            let (r, g, b) = func(mask.mask[index],
+                                 (self.pixels[index * 3],
+                                  self.pixels[index * 3 + 1],
+                                  self.pixels[index * 3 + 2]));
+            self.pixels[index * 3] = r;
+            self.pixels[index * 3 + 1] = g;
+            self.pixels[index * 3 + 2] = b;
+        }
+    }
+
     /// Overwrites the entire framebuffer with the given color
     pub fn fill(&mut self, fill: Color) {
         for pixel in 0..(self.width * self.height) {
@@ -95,7 +155,7 @@ impl Framebuffer {
     pub fn point_at(&mut self, x: i64, y: i64, stroke: Color) {
         if x >= 0 && x < (self.width as i64) && y >= 0 && y < (self.height as i64) {
             let offset =
-                (y * (self.height as i64) * Framebuffer::BYTES_PER_PIXEL) + (x * Framebuffer::BYTES_PER_PIXEL);
+                (y * (self.width as i64) * Framebuffer::BYTES_PER_PIXEL) + (x * Framebuffer::BYTES_PER_PIXEL);
 
             stroke.write(&mut self.pixels, offset as usize);
         }
