@@ -20,9 +20,9 @@ $ cargo run --release | x265 --fps 30 -o output.mp4 /dev/stdin
 * Demos
 ** framebuffer
 Not actually a demo, this is the library crate used by all the others for
-drawing pixels and outputting them as NetPBM images. It supports basic
-RGB colors (currently no blending) and a 2D canvas that provides a few
-basic operations (rectangle filling, points and lines).
+drawing pixels and outputting them as NetPBM images. It supports RGBA colors and
+a 2D canvas that provides a few basic operations (rectangle filling, points and
+lines).
 
 For more information, navigate into the framebuffer directory and look
 at the documentation:
@@ -31,6 +31,9 @@ at the documentation:
 $ cd framebuffer
 $ cargo doc --open
 #+END_SRC
+** scratch
+Not a demo either, just a place to put throwaway code which tests various
+aspects of the framebuffer.
 ** asciiscope
 asciiscope reads its input one byte at a time and produces a heatmap display of
 what byte values it saw last. The grid heats up for every value it sees and
@@ -50,6 +53,3 @@ The underlying noise is similar everywhere (basically TV snow) but what colors
 show up depend upon the number of lenses over a given spot:
 
 [[./assets/infocus.gif]]
-
-Currently this one is difficult to view live due to lack of optimization,
-recording this one up-front gives the best viewing experience.
