@@ -199,72 +199,152 @@ impl Framebuffer {
 
     /// Draws a colored line between two points
     pub fn line_at(&mut self, x: i64, y: i64, x2: i64, y2: i64, stroke: Color) {
-        let rise = y2 - y;
-        let run = x2 - x;
+        /*
+        Ref: http://members.chello.at/~easyfilter/Bresenham.pdf, p.13
 
-        if run == 0 {
-            // Lines along either axis don't require tracking the slope, since
-            // we can hold one coordinate fixed and just draw with the other
-            let bottom_y = y.min(y2);
-            let top_y = y.max(y2);
+        The idea behind this algorithm and the related ones in the paper is to
+        figure out the next best pixel incrementally by determining which next
+        pixel would be farthest from the line we want to draw. Since we're
+        restricted to a grid of pixels each choice creates some deviation
+        from the actual line that we want to minimize.
 
-            for py in bottom_y..top_y {
-                self.point_at(x, py, stroke);
-            }
-        } else if rise == 0 {
-            let left_x = x.min(x2);
-            let right_x = x.max(x2);
+        The line itself is this equation. The error value E for (px, py) is the
+        value of the right-hand side. 0 indicates a point directly on the line,
+        anything else will be at some offset.
 
-            for px in left_x..right_x {
-                self.point_at(px, y, stroke);
-            }
-        } else if run.abs() > rise.abs() {
-            // Use Bresenham's algorithm otherwise, picking whatever axis moves
-            // the most for our basis axis and the other as an error axis
-            let left_x = x.min(x2);
-            let right_x = x.max(x2);
-            let slope = rise as f64 / run as f64;
+        let dx = x2 - x,
+            dy = y2 - y
 
-            let (start_y, sign) = if left_x == x2 {
-                (y2, -rise.signum())
-            } else {
-                (y, rise.signum())
-            };
+           py = (px - x) * dy / dx + y
+        ~> 0 = (py - y) * dx - (px - x) * dy
 
-            let error_incr = slope.abs();
-            let mut error = 0.0;
+        Assuming we're at (px, py) already, we have to figure out what pixel to
+        color next. There are three ways we can go (assuming we're in quadrant
+        1):
 
-            let mut py = start_y;
-            for px in left_x..right_x {
-                self.point_at(px, py, stroke);
-                error += error_incr;
-                if error > 0.5 {
-                    py += sign;
-                    error -= 1.0;
+        - px + 1, py + 1:
+           (py + 1 - y) * dx - (px + 1 - x) * dy
+        ~> E' = dx - dy + E
+
+        - px + 1, py:
+           (py - y) * dx - (px + 1 - x) * dy
+        ~> E' = -dy + E
+
+        - px, py + 1:
+           (py + 1 - y) * dx - (px - x) * dy
+        ~> E' = dx + E
+
+        Whatever next point produces the smallest error is the one we want to
+        pick.
+         */
+        let deltax = (x2 - x).abs();
+        let stepx = (x2 - x).signum();
+
+        let deltay = -(y2 - y).abs();
+        let stepy = (y2 - y).signum();
+
+        let mut error = deltax + deltay;
+
+        let mut px = x;
+        let mut py = y;
+        loop {
+            self.point_at(px, py, stroke);
+
+            let next_error = 2 * error;
+            if next_error >= deltay {
+                if px == x2 {
+                    break;
                 }
+
+                error += deltay;
+                px += stepx;
             }
-        } else {
-            let bottom_y = y.min(y2);
-            let top_y = y.max(y2);
-            let slope = run as f64 / rise as f64;
 
-            let (start_x, sign) = if bottom_y == y2 {
-                (x2, -run.signum())
-            } else {
-                (x, run.signum())
-            };
-
-            let error_incr = slope.abs();
-            let mut error = 0.0;
-
-            let mut px = start_x;
-            for py in bottom_y..top_y {
-                self.point_at(px, py, stroke);
-                error += error_incr;
-                if error > 0.5 {
-                    px += sign;
-                    error -= 1.0;
+            if next_error <= deltax {
+                if py == y2 {
+                    break;
                 }
+
+                error += deltax;
+                py += stepy;
+            }
+        }
+    }
+
+    /// Draws a colored circle around the given point
+    pub fn circle_at(&mut self, x: i64, y: i64, r: i64, stroke: Color) {
+        /*
+        Derivation, assuming that x and y are the origin (the offset can be done
+        later):
+
+        0 = px^2 + py^2 - r^2
+
+        Assuming that we're in the second quadrant, where the slope of the curve
+        is positive:
+
+        - px + 1, py + 1
+           (px + 1)^2 + (py + 1)^2 - r^2
+        ~> E' = 2*px + 2*py + 2 + E
+
+        - px + 1, py
+           (px + 1)^2 + py^2 - r^2
+        ~> E' = 2*px + 1 + E
+
+        - px, py + 1
+           px^2 + (py + 1)^2 - r^2
+        ~> E' = 2*py + 1 + E
+
+        The starting error is for (-r, 0):
+
+        E_1 = (-r + 1)^2 + 1^2 - r^2
+        ~>    -2r + 2
+         */
+        let mut error = -2 * r + 2;
+
+        let mut relx = -r;
+        let mut rely = 0;
+
+        while relx <= 0 {
+            self.point_at(x + relx, y + rely, stroke); // Quadrant II
+            self.point_at(x - relx, y + rely, stroke); // Quadrant I
+            self.point_at(x + relx, y - rely, stroke); // Quadrant IV
+            self.point_at(x - relx, y - rely, stroke); // Quadrant III
+
+            let next_error = 2 * error;
+            if next_error >= 2 * relx + 1 {
+                relx += 1;
+                error += 2 * relx + 1;
+            }
+
+            if next_error <= 2 * rely + 1 {
+                rely += 1;
+                error += 2 * rely + 1;
+            }
+        }
+    }
+
+    /// Fills a colored circle around the given point
+    pub fn circle_fill(&mut self, x: i64, y: i64, r: i64, stroke: Color) {
+        let mut error = -2 * r + 2;
+
+        let mut relx = -r;
+        let mut rely = 0;
+
+        while relx <= 0 {
+            for fx in relx..(-relx + 1) {
+                self.point_at(x + fx, y + rely, stroke);
+                self.point_at(x + fx, y - rely, stroke);
+            }
+
+            let next_error = 2 * error;
+            if next_error >= 2 * relx + 1 {
+                relx += 1;
+                error += 2 * relx + 1;
+            }
+
+            if next_error <= 2 * rely + 1 {
+                rely += 1;
+                error += 2 * rely + 1;
             }
         }
     }
