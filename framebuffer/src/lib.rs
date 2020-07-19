@@ -7,30 +7,55 @@ pub struct Color {
     r: u8,
     g: u8,
     b: u8,
+    alpha: u8,
 }
 
 impl Color {
     /// Creates a new color from R, G and B components
-    pub fn new(r: u8, g: u8, b: u8) -> Color {
-        Color { r, g, b }
+    pub fn rgb(r: u8, g: u8, b: u8) -> Color {
+        Color { r, g, b, alpha: 255 }
+    }
+
+    /// Creates a new color from R, G and B components
+    pub fn rgba(r: u8, g: u8, b: u8, alpha:u8) -> Color {
+        Color { r, g, b, alpha }
     }
 
     /// Returns a Color representing pure white
     pub fn white() -> Color {
-        Color::new(255, 255, 255)
+        Color::rgb(255, 255, 255)
     }
 
     /// Returns a Color representing pure black
     pub fn black() -> Color {
-        Color::new(0, 0, 0)
+        Color::rgb(0, 0, 0)
     }
 
     /// Writes the contents of the color to a raw 24-bit image buffer at a given
     /// offset, in RGB order
     fn write(&self, bitmap: &mut Vec<u8>, offset: usize) {
-        bitmap[offset] = self.r;
-        bitmap[offset + 1] = self.g;
-        bitmap[offset + 2] = self.b;
+        if self.alpha == 0 {
+            return
+        } else if self.alpha == 255 {
+            bitmap[offset] = self.r;
+            bitmap[offset + 1] = self.g;
+            bitmap[offset + 2] = self.b;
+        } else {
+            let base_blend = (255 - self.alpha) as u16;
+            let (r, g, b) = {
+                let blend = |offset, color| {
+                    ((bitmap[offset] as u16 * base_blend) +
+                        (color as u16 * self.alpha as u16)) / 255
+                };
+                (blend(offset, self.r) as u8,
+                 blend(offset + 1, self.g) as u8,
+                 blend(offset + 2, self.b) as u8)
+            };
+
+            bitmap[offset] = r;
+            bitmap[offset + 1] = g;
+            bitmap[offset + 2] = b;
+        }
     }
 }
 

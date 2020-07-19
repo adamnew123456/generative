@@ -82,7 +82,7 @@ fn new_rng() -> random::Default {
 
 /// Generates a random color
 fn random_color<T: random::Source>(source: &mut T) -> Color {
-    Color::new(source.read::<u8>(),
+    Color::rgb(source.read::<u8>(),
                source.read::<u8>(),
                source.read::<u8>())
 }

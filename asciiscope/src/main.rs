@@ -24,7 +24,7 @@ fn render_frame<T: io::Write>(gfx: &mut Framebuffer, heatmap: &[u8; 256], stream
 
     for i in 0..256 {
         let byteval = heatmap[i];
-        let color = Color::new(byteval, 0, 0);
+        let color = Color::rgb(byteval, 0, 0);
         gfx.fill_rect(x, y, CELL_SIZE, CELL_SIZE, color);
 
         if (i + 1) % 16 == 0 {
