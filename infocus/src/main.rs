@@ -82,9 +82,11 @@ fn new_rng() -> random::Default {
 
 /// Generates a random color
 fn random_color<T: random::Source>(source: &mut T) -> Color {
-    Color::rgb(source.read::<u8>(),
-               source.read::<u8>(),
-               source.read::<u8>())
+    Color::rgb(
+        source.read::<u8>(),
+        source.read::<u8>(),
+        source.read::<u8>(),
+    )
 }
 
 fn main() {
@@ -93,10 +95,12 @@ fn main() {
     let mut lenses = Vec::new();
     for x in 0..(CANVAS_SIZE / (LENS_RADIUS * 2)) {
         for y in 0..(CANVAS_SIZE / (LENS_RADIUS * 2)) {
-            lenses.push(Lens::new(LENS_RADIUS + x * LENS_RADIUS * 2,
-                                  LENS_RADIUS + y * LENS_RADIUS * 2,
-                                  x + 1,
-                                  y + 1));
+            lenses.push(Lens::new(
+                LENS_RADIUS + x * LENS_RADIUS * 2,
+                LENS_RADIUS + y * LENS_RADIUS * 2,
+                x + 1,
+                y + 1,
+            ));
         }
     }
 
@@ -119,7 +123,7 @@ fn main() {
             for x in lens.left()..lens.right() {
                 for y in lens.top()..lens.bottom() {
                     if !lens.contains(x, y) {
-                        continue
+                        continue;
                     }
 
                     maskbuffer.update(x, y, |v| v + 1);
@@ -127,14 +131,13 @@ fn main() {
             }
         }
 
-        framebuffer.mask(&maskbuffer, |mask, (r, g, b)|
-                         match mask {
-                             0 => (0, 0, 0),
-                             1 => (r, 0, 0),
-                             2 => (0, g, 0),
-                             3 => (0, 0, b),
-                             _ => (r, g, b),
-                         });
+        framebuffer.mask(&maskbuffer, |mask, (r, g, b)| match mask {
+            0 => (0, 0, 0),
+            1 => (r, 0, 0),
+            2 => (0, g, 0),
+            3 => (0, 0, b),
+            _ => (r, g, b),
+        });
 
         framebuffer.write(&mut std::io::stdout()).unwrap();
     }

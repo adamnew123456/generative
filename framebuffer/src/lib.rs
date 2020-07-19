@@ -13,11 +13,16 @@ pub struct Color {
 impl Color {
     /// Creates a new color from R, G and B components
     pub fn rgb(r: u8, g: u8, b: u8) -> Color {
-        Color { r, g, b, alpha: 255 }
+        Color {
+            r,
+            g,
+            b,
+            alpha: 255,
+        }
     }
 
     /// Creates a new color from R, G and B components
-    pub fn rgba(r: u8, g: u8, b: u8, alpha:u8) -> Color {
+    pub fn rgba(r: u8, g: u8, b: u8, alpha: u8) -> Color {
         Color { r, g, b, alpha }
     }
 
@@ -35,7 +40,7 @@ impl Color {
     /// offset, in RGB order
     fn write(&self, bitmap: &mut Vec<u8>, offset: usize) {
         if self.alpha == 0 {
-            return
+            return;
         } else if self.alpha == 255 {
             bitmap[offset] = self.r;
             bitmap[offset + 1] = self.g;
@@ -44,12 +49,14 @@ impl Color {
             let base_blend = (255 - self.alpha) as u16;
             let (r, g, b) = {
                 let blend = |offset, color| {
-                    ((bitmap[offset] as u16 * base_blend) +
-                        (color as u16 * self.alpha as u16)) / 255
+                    ((bitmap[offset] as u16 * base_blend) + (color as u16 * self.alpha as u16))
+                        / 255
                 };
-                (blend(offset, self.r) as u8,
-                 blend(offset + 1, self.g) as u8,
-                 blend(offset + 2, self.b) as u8)
+                (
+                    blend(offset, self.r) as u8,
+                    blend(offset + 1, self.g) as u8,
+                    blend(offset + 2, self.b) as u8,
+                )
             };
 
             bitmap[offset] = r;
@@ -92,11 +99,11 @@ impl Maskbuffer {
     /// Updates the value of the maskbuffer at the given location
     pub fn update<T: Fn(u8) -> u8>(&mut self, x: i64, y: i64, func: T) {
         if x < 0 || x >= self.width as i64 {
-            return
+            return;
         }
 
         if y < 0 || y >= self.height as i64 {
-            return
+            return;
         }
 
         let offset = (y * self.width as i64) + x;
@@ -150,10 +157,14 @@ impl Framebuffer {
     pub fn mask<T: Fn(u8, (u8, u8, u8)) -> (u8, u8, u8)>(&mut self, mask: &Maskbuffer, func: T) {
         for pixel in 0..(self.width * self.height) {
             let index = pixel as usize;
-            let (r, g, b) = func(mask.mask[index],
-                                 (self.pixels[index * 3],
-                                  self.pixels[index * 3 + 1],
-                                  self.pixels[index * 3 + 2]));
+            let (r, g, b) = func(
+                mask.mask[index],
+                (
+                    self.pixels[index * 3],
+                    self.pixels[index * 3 + 1],
+                    self.pixels[index * 3 + 2],
+                ),
+            );
             self.pixels[index * 3] = r;
             self.pixels[index * 3 + 1] = g;
             self.pixels[index * 3 + 2] = b;
@@ -179,8 +190,8 @@ impl Framebuffer {
     /// Draws a single colored pixel on the framebuffer
     pub fn point_at(&mut self, x: i64, y: i64, stroke: Color) {
         if x >= 0 && x < (self.width as i64) && y >= 0 && y < (self.height as i64) {
-            let offset =
-                (y * (self.width as i64) * Framebuffer::BYTES_PER_PIXEL) + (x * Framebuffer::BYTES_PER_PIXEL);
+            let offset = (y * (self.width as i64) * Framebuffer::BYTES_PER_PIXEL)
+                + (x * Framebuffer::BYTES_PER_PIXEL);
 
             stroke.write(&mut self.pixels, offset as usize);
         }
@@ -214,12 +225,11 @@ impl Framebuffer {
             let right_x = x.max(x2);
             let slope = rise as f64 / run as f64;
 
-            let (start_y, sign) =
-                if left_x == x2 {
-                    (y2, -rise.signum())
-                } else {
-                    (y, rise.signum())
-                };
+            let (start_y, sign) = if left_x == x2 {
+                (y2, -rise.signum())
+            } else {
+                (y, rise.signum())
+            };
 
             let error_incr = slope.abs();
             let mut error = 0.0;
@@ -238,12 +248,11 @@ impl Framebuffer {
             let top_y = y.max(y2);
             let slope = run as f64 / rise as f64;
 
-            let (start_x, sign) =
-                if bottom_y == y2 {
-                    (x2, -run.signum())
-                } else {
-                    (x, run.signum())
-                };
+            let (start_x, sign) = if bottom_y == y2 {
+                (x2, -run.signum())
+            } else {
+                (x, run.signum())
+            };
 
             let error_incr = slope.abs();
             let mut error = 0.0;
@@ -261,7 +270,7 @@ impl Framebuffer {
     }
 
     /// Dumps the framebuffer as a binary PPM image
-    pub fn write<T: io::Write>(&self, output: &mut T) -> io::Result<()> {
+    pub fn write(&self, output: &mut impl io::Write) -> io::Result<()> {
         let header = format!("P6\n{} {}\n255\n", self.width, self.height);
         write_all(output, header.as_bytes())?;
         write_all(output, &self.pixels)

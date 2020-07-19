@@ -1,5 +1,5 @@
-use std::io;
 use framebuffer::*;
+use std::io;
 
 fn main() {
     let background = Color::black();

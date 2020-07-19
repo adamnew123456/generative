@@ -1,6 +1,6 @@
+use framebuffer::*;
 use std::io;
 use std::io::prelude::*;
-use framebuffer::*;
 
 const CELL_SIZE: i64 = 20;
 const CELL_GAP: i64 = 4;
@@ -18,7 +18,11 @@ fn cool_heatmap(heatmap: &mut [u8; 256]) {
     }
 }
 
-fn render_frame<T: io::Write>(gfx: &mut Framebuffer, heatmap: &[u8; 256], stream: &mut T) -> io::Result<()> {
+fn render_frame<T: io::Write>(
+    gfx: &mut Framebuffer,
+    heatmap: &[u8; 256],
+    stream: &mut T,
+) -> io::Result<()> {
     let mut x = CELL_GAP;
     let mut y = CELL_GAP;
 
@@ -53,7 +57,7 @@ fn main() {
     loop {
         let size = stdin.read(&mut byteval).unwrap();
         if size == 0 {
-            break
+            break;
         }
 
         if heatmap[byteval[0] as usize] < 255 - HEATING {
