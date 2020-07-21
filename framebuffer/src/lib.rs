@@ -331,11 +331,6 @@ impl Framebuffer {
         let mut rely = 0;
 
         while relx <= 0 {
-            for fx in relx..(-relx + 1) {
-                self.point_at(x + fx, y + rely, stroke);
-                self.point_at(x + fx, y - rely, stroke);
-            }
-
             let next_error = 2 * error;
             if next_error >= 2 * relx + 1 {
                 relx += 1;
@@ -343,6 +338,9 @@ impl Framebuffer {
             }
 
             if next_error <= 2 * rely + 1 {
+                self.line_at(x + relx, y + rely, x - relx, y + rely, stroke);
+                self.line_at(x + relx, y - rely, x - relx, y - rely, stroke);
+
                 rely += 1;
                 error += 2 * rely + 1;
             }
