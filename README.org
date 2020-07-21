@@ -53,3 +53,10 @@ The underlying noise is similar everywhere (basically TV snow) but what colors
 show up depend upon the number of lenses over a given spot:
 
 [[./assets/infocus.gif]]
+** unstable-core
+Unstable Core is mostly an experiment using the framebuffer's new (at the time
+Unstable Core was written) support for drawing and filling circles. It also
+makes use of the framebuffer's support for alpha blending, which allows for a
+simple global motion-blur effect between frames:
+
+[[./assets/unstable-core.gif]]
