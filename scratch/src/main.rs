@@ -2,24 +2,27 @@ use framebuffer::*;
 use std::io;
 
 fn main() {
-    let background = Color::white();
     let red = Color::rgb(255, 0, 0);
     let green = Color::rgb(0, 255, 0);
     let blue = Color::rgb(0, 0, 255);
 
     let mut stdout = io::stdout();
 
-    let mut gfx = Framebuffer::new(400, 400, background);
+    let buffer = FrameBuffer::new(400, 400);
+    let mut gfx = Canvas::new(buffer, Color::white(), Color::black());
 
     let (mut a, mut b, mut c) = (red, green, blue);
     for _i in 0..(15 * 30) {
         for r in 1..80 {
-            gfx.circle_at(200, 200, r * 3, a);
-            gfx.circle_at(200, 200, (r * 3) + 1, b);
-            gfx.circle_at(200, 200, (r * 3) + 2, c);
+            gfx.set_stroke(a);
+            gfx.stroke_circle(200, 200, r * 3);
+            gfx.set_stroke(b);
+            gfx.stroke_circle(200, 200, (r * 3) + 1);
+            gfx.set_stroke(c);
+            gfx.stroke_circle(200, 200, (r * 3) + 2);
         }
 
-        gfx.write(&mut stdout).unwrap();
+        gfx.buffer().write(&mut stdout).unwrap();
 
         let tmp = a;
         a = b;

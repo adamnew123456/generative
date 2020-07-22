@@ -39,10 +39,10 @@ fn main() {
     let background = Color::black();
     let blur = Color::rgba(0, 0, 0, 15);
     let bolt = Color::white();
-    let fill = Color::rgba(255, 0, 255, 120);
-    let fill_halo = Color::rgba(255, 255, 0, 200);
-    let cascade = Color::rgba(0, 0, 0, 3);
-    let mut gfx = Framebuffer::new(800, 800, background);
+    let fill = Color::rgba(255, 255, 0, 120);
+    let fill_halo = Color::rgba(255, 0, 0, 200);
+    let buffer = FrameBuffer::new((CENTER_X * 2) as u32, (CENTER_Y * 2) as u32);
+    let mut gfx = Canvas::new(buffer, background, Color::white());
     let mut rng = new_rng();
 
     // Main core state - energy (determines radius) and bleeding (determines
@@ -63,8 +63,9 @@ fn main() {
         accumulator_base_angles[i] = (i as f64) * (2.0 * f64::consts::PI) / (ACCUMULATOR_COUNT as f64);
     }
 
-    for _i in 0..900 {
-        gfx.fill(blur);
+    loop {
+        gfx.set_fill(blur);
+        gfx.fill();
 
         if bleeding {
             energy -= CORE_BLEED_RATE;
@@ -90,11 +91,12 @@ fn main() {
 
             if bleeding && i == target {
                 let offset = ACCUMULATOR_SIZE / 2;
-                gfx.line_at(CENTER_X, CENTER_Y, x, y, bolt);
-                gfx.line_at(CENTER_X, CENTER_Y, x - offset, y - offset, bolt);
-                gfx.line_at(CENTER_X, CENTER_Y, x + offset, y - offset, bolt);
-                gfx.line_at(CENTER_X, CENTER_Y, x - offset, y + offset, bolt);
-                gfx.line_at(CENTER_X, CENTER_Y, x + offset, y + offset, bolt);
+                gfx.set_stroke(bolt);
+                gfx.stroke_line(CENTER_X, CENTER_Y, x, y);
+                gfx.stroke_line(CENTER_X, CENTER_Y, x - offset, y - offset);
+                gfx.stroke_line(CENTER_X, CENTER_Y, x + offset, y - offset);
+                gfx.stroke_line(CENTER_X, CENTER_Y, x - offset, y + offset);
+                gfx.stroke_line(CENTER_X, CENTER_Y, x + offset, y + offset);
 
                 if 255 - accumulator_heat[i] >= ACCUMULATOR_HEAT {
                     accumulator_heat[i] += ACCUMULATOR_HEAT;
@@ -108,12 +110,18 @@ fn main() {
             }
 
             let color = Color::rgb(0, accumulator_heat[i], accumulator_heat[i]);
-            gfx.circle_fill(x, y, ACCUMULATOR_SIZE, color);
+            gfx.set_fill(color);
+            gfx.fill_circle(x, y, ACCUMULATOR_SIZE);
         }
 
-        // Draw the core and halo
-        gfx.circle_fill(CENTER_X, CENTER_Y, radius + jitter, fill_halo);
+        // Draw the core
+        gfx.set_fill(fill);
+        gfx.gfill_circle(CENTER_X, CENTER_Y, radius + jitter, |_, radius| {
+            let mix = Color::rgba(0, 0, 0, 200 - (50.0 * radius) as u8);
+            fill.blend(mix)
+        });
 
+        // Draw the top-reaching bolts over the core
         for i in 0..ACCUMULATOR_COUNT {
             if (bleeding && target == i) || accumulator_heat[i] < ACCUMULATOR_MIN_HEAT {
                 continue;
@@ -125,28 +133,22 @@ fn main() {
 
             let color = Color::rgb(0, accumulator_heat[i], accumulator_heat[i]);
             let offset = ACCUMULATOR_SIZE / 2;
-            gfx.line_at(x, y, CENTER_X, -100, color);
-            gfx.line_at(x - offset, y - offset, CENTER_X, -100, color);
-            gfx.line_at(x + offset, y - offset, CENTER_X, - 100, color);
-            gfx.line_at(x - offset, y + offset, CENTER_X, - 100, color);
-            gfx.line_at(x + offset, y + offset, CENTER_X, -100, color);
+            gfx.set_stroke(color);
+            gfx.stroke_line(x, y, CENTER_X, -100);
+            gfx.stroke_line(x - offset, y - offset, CENTER_X, -100);
+            gfx.stroke_line(x + offset, y - offset, CENTER_X, -100);
+            gfx.stroke_line(x - offset, y + offset, CENTER_X, -100);
+            gfx.stroke_line(x + offset, y + offset, CENTER_X, -100);
         }
 
-        // Post-fill the halo so it affects all the energy bolts
-        gfx.circle_fill(CENTER_X, CENTER_Y, radius, fill);
+        // Post-fill the halo so it affects all the energy bolts, including a
+        // shading gradient that gets darker toward the center of the core
+        gfx.gfill_circle(CENTER_X, CENTER_Y, radius, |_, radius| {
+            let mix = Color::rgba(0, 0, 0, 200 - (100.0 * radius.min(0.50)) as u8);
+            fill_halo.blend(mix)
+        });
 
-        // Adds gradient to the core and halo, giving a shading effect that gets
-        // darker towards the center of the core and the border of the halo and
-        // the core
-        for i in 1..radius {
-            gfx.circle_fill(CENTER_X, CENTER_Y, i, cascade);
-        }
-
-        for i in 1..jitter {
-            gfx.circle_fill(CENTER_X, CENTER_Y, radius + i, cascade);
-        }
-
-        gfx.write(&mut stdout).unwrap();
+        gfx.buffer().write(&mut stdout).unwrap();
 
         if bleeding && energy == CORE_MIN_ENERGY {
             bleeding = false;

@@ -19,7 +19,7 @@ fn cool_heatmap(heatmap: &mut [u8; 256]) {
 }
 
 fn render_frame<T: io::Write>(
-    gfx: &mut Framebuffer,
+    gfx: &mut Canvas<Color, FrameBuffer>,
     heatmap: &[u8; 256],
     stream: &mut T,
 ) -> io::Result<()> {
@@ -29,7 +29,8 @@ fn render_frame<T: io::Write>(
     for i in 0..256 {
         let byteval = heatmap[i];
         let color = Color::rgb(byteval, 0, 0);
-        gfx.fill_rect(x, y, CELL_SIZE, CELL_SIZE, color);
+        gfx.set_fill(color);
+        gfx.fill_rect(x, y, CELL_SIZE, CELL_SIZE);
 
         if (i + 1) % 16 == 0 {
             x = CELL_GAP;
@@ -39,7 +40,7 @@ fn render_frame<T: io::Write>(
         }
     }
 
-    gfx.write(stream)
+    gfx.buffer().write(stream)
 }
 
 fn main() {
@@ -47,11 +48,13 @@ fn main() {
     let dimension = (CELL_GAP + CELL_SIZE) * 16 + CELL_GAP;
     let mut stdout = io::stdout();
     let mut stdin = io::stdin();
-    let mut gfx = Framebuffer::new(dimension as u32, dimension as u32, background);
+
+    let buffer = FrameBuffer::new(dimension as u32, dimension as u32);
+    let mut gfx = Canvas::new(buffer, background, Color::black());
 
     let mut heatmap: [u8; 256] = [0; 256];
     render_frame(&mut gfx, &heatmap, &mut stdout).unwrap();
-    gfx.fill(background);
+    gfx.fill();
 
     let mut byteval: [u8; 1] = [0; 1];
     loop {
@@ -65,7 +68,9 @@ fn main() {
         }
 
         render_frame(&mut gfx, &heatmap, &mut stdout).unwrap();
-        gfx.fill(background);
+
+        gfx.set_fill(background);
+        gfx.fill();
 
         cool_heatmap(&mut heatmap);
     }

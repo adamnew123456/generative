@@ -104,14 +104,18 @@ fn main() {
         }
     }
 
-    let mut framebuffer = Framebuffer::new(CANVAS_SIZE as u32, CANVAS_SIZE as u32, Color::white());
-    let mut maskbuffer = Maskbuffer::new(CANVAS_SIZE as u32, CANVAS_SIZE as u32, 0);
+    let framebuffer = FrameBuffer::new(CANVAS_SIZE as u32, CANVAS_SIZE as u32);
+    let mut framegfx = Canvas::new(framebuffer, Color::white(), Color::black());
+
+    let maskbuffer = StencilBuffer::new(CANVAS_SIZE as u32, CANVAS_SIZE as u32);
+    let mut maskgfx = Canvas::new(maskbuffer, 0, 1);
 
     loop {
-        maskbuffer.fill(0);
+        maskgfx.fill();
+
         for x in 0..CANVAS_SIZE {
             for y in 0..CANVAS_SIZE {
-                framebuffer.point_at(x, y, random_color(&mut rng));
+                framegfx.put_point(x, y, random_color(&mut rng));
             }
         }
 
@@ -126,19 +130,19 @@ fn main() {
                         continue;
                     }
 
-                    maskbuffer.update(x, y, |v| v + 1);
+                    maskgfx.put_point(x, y, maskgfx.get_point(x, y).unwrap() + 1);
                 }
             }
         }
 
-        framebuffer.mask(&maskbuffer, |mask, (r, g, b)| match mask {
-            0 => (0, 0, 0),
-            1 => (r, 0, 0),
-            2 => (0, g, 0),
-            3 => (0, 0, b),
-            _ => (r, g, b),
+        framegfx.mask(&maskgfx, |color, mask| match mask {
+            0 => Color::black(),
+            1 => color.mask(true, false, false),
+            2 => color.mask(false, true, false),
+            3 => color.mask(false, false, true),
+            _ => color,
         });
 
-        framebuffer.write(&mut std::io::stdout()).unwrap();
+        framegfx.buffer().write(&mut std::io::stdout()).unwrap();
     }
 }
