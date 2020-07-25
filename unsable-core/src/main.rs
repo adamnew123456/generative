@@ -144,7 +144,7 @@ fn main() {
         // Post-fill the halo so it affects all the energy bolts, including a
         // shading gradient that gets darker toward the center of the core
         gfx.gfill_circle(CENTER_X, CENTER_Y, radius, |_, radius| {
-            let mix = Color::rgba(0, 0, 0, 200 - (100.0 * radius.min(0.50)) as u8);
+            let mix = Color::rgba(0, 0, 0, (200.0 * radius.max(0.25)) as u8);
             fill_halo.blend(mix)
         });
 

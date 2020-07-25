@@ -16,12 +16,12 @@ fn write_all<T: io::Write>(output: &mut T, buffer: &[u8]) -> io::Result<()> {
 }
 
 /// A simple RGB color with transparency.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct Color {
-    r: u8,
-    g: u8,
-    b: u8,
-    alpha: u8,
+    pub r: u8,
+    pub g: u8,
+    pub b: u8,
+    pub alpha: u8,
 }
 
 impl Color {
@@ -58,9 +58,7 @@ impl Color {
         let base_blend = (255 - other.alpha) as u16;
 
         let (r, g, b) = {
-            let blend = |a, b| {
-                ((a as u16 * base_blend) + (b as u16 * other.alpha as u16)) / 255
-            };
+            let blend = |a, b| ((a as u16 * base_blend) + (b as u16 * other.alpha as u16)) / 255;
             (
                 blend(self.r, other.r) as u8,
                 blend(self.g, other.g) as u8,
@@ -104,7 +102,7 @@ impl FrameBuffer {
         FrameBuffer {
             pixels,
             width,
-            height
+            height,
         }
     }
 
@@ -132,7 +130,11 @@ impl GraphicBuffer<Color> for FrameBuffer {
             None
         } else {
             let offset = ((y * (self.width as i64) * 3) + (x * 3)) as usize;
-            Some(Color::rgb(self.pixels[offset], self.pixels[offset + 1], self.pixels[offset + 2]))
+            Some(Color::rgb(
+                self.pixels[offset],
+                self.pixels[offset + 1],
+                self.pixels[offset + 2],
+            ))
         }
     }
 
@@ -154,7 +156,8 @@ impl GraphicBuffer<Color> for FrameBuffer {
 
             let (r, g, b) = {
                 let blend = |offset, channel| {
-                    ((self.pixels[offset] as u16 * base_blend) + (channel as u16 * color.alpha as u16))
+                    ((self.pixels[offset] as u16 * base_blend)
+                        + (channel as u16 * color.alpha as u16))
                         / 255
                 };
                 (
@@ -186,7 +189,7 @@ impl StencilBuffer {
         StencilBuffer {
             pixels,
             width,
-            height
+            height,
         }
     }
 }
@@ -267,18 +270,21 @@ impl<Element: Copy, Buffer: GraphicBuffer<Element>> Canvas<Element, Buffer> {
     }
 
     /// Applies a mask function from the other buffer onto this canvas's buffer
-    pub fn mask<MaskElement, MaskBuffer, F>(&mut self, other: &Canvas<MaskElement, MaskBuffer>, func: F)
-    where
+    pub fn mask<MaskElement, MaskBuffer, F>(
+        &mut self,
+        other: &Canvas<MaskElement, MaskBuffer>,
+        func: F,
+    ) where
         MaskElement: Copy,
         MaskBuffer: GraphicBuffer<MaskElement>,
         F: Fn(Element, MaskElement) -> Element,
     {
         if self.buffer.width() != other.width() {
-            return
+            return;
         }
 
         if self.buffer.height() != other.height() {
-            return
+            return;
         }
 
         for py in 0..self.buffer.height() {
@@ -323,7 +329,7 @@ impl<Element: Copy, Buffer: GraphicBuffer<Element>> Canvas<Element, Buffer> {
     pub fn fill(&mut self) {
         for y in 0..self.buffer.height() {
             for x in 0..self.buffer.width() {
-                self.fill_point(x as i64,  y as i64);
+                self.fill_point(x as i64, y as i64);
             }
         }
     }
@@ -340,7 +346,7 @@ impl<Element: Copy, Buffer: GraphicBuffer<Element>> Canvas<Element, Buffer> {
     /// Fills the given region of the framebuffer with the given gradient(xratio, yratio)
     pub fn gfill_rect<F>(&mut self, x: i64, y: i64, width: i64, height: i64, gradient: F)
     where
-        F: Fn(f64, f64) -> Element
+        F: Fn(f64, f64) -> Element,
     {
         for py in y..(y + height) {
             let yratio = (py - y) as f64 / height as f64;
@@ -370,7 +376,7 @@ impl<Element: Copy, Buffer: GraphicBuffer<Element>> Canvas<Element, Buffer> {
     /// given gradient(xratio, yratio)
     pub fn gstroke_rect<F>(&mut self, x: i64, y: i64, width: i64, height: i64, gradient: F)
     where
-        F: Fn(f64, f64) -> Element
+        F: Fn(f64, f64) -> Element,
     {
         for py in y..(y + height) {
             let yratio = (py - y) as f64 / height as f64;
@@ -381,7 +387,8 @@ impl<Element: Copy, Buffer: GraphicBuffer<Element>> Canvas<Element, Buffer> {
                 }
             } else {
                 self.buffer.put_point(py, x, gradient(0.0, yratio));
-                self.buffer.put_point(py, x + width - 1, gradient(1.0, yratio));
+                self.buffer
+                    .put_point(py, x + width - 1, gradient(1.0, yratio));
             }
         }
     }
@@ -524,7 +531,8 @@ impl<Element: Copy, Buffer: GraphicBuffer<Element>> Canvas<Element, Buffer> {
 
     /// Draws a straight line between the two points using the given gradient(ratio)
     pub fn gstroke_line<F>(&mut self, x: i64, y: i64, x2: i64, y2: i64, gradient: F)
-        where F: Fn(f64) -> Element
+    where
+        F: Fn(f64) -> Element,
     {
         if x == x2 {
             let length = (y2 - y) as f64;
@@ -549,20 +557,15 @@ impl<Element: Copy, Buffer: GraphicBuffer<Element>> Canvas<Element, Buffer> {
         let stepy = (y2 - y).signum();
 
         let mut error = deltax + deltay;
-        let length = (
-            (deltax as f64).powf(2.0) +
-            (deltay as f64).powf(2.0)
-        ).sqrt();
+        let length = ((deltax as f64).powf(2.0) + (deltay as f64).powf(2.0)).sqrt();
 
         let mut px = x;
         let mut py = y;
         loop {
-            let point_length = (
-                ((px - x) as f64).powf(2.0) +
-                ((py - y) as f64).powf(2.0)
-            ).sqrt();
+            let point_length = (((px - x) as f64).powf(2.0) + ((py - y) as f64).powf(2.0)).sqrt();
 
-            self.buffer.put_point(px, py, gradient(point_length / length));
+            self.buffer
+                .put_point(px, py, gradient(point_length / length));
 
             let next_error = 2 * error;
             if next_error >= deltay {
@@ -642,7 +645,7 @@ impl<Element: Copy, Buffer: GraphicBuffer<Element>> Canvas<Element, Buffer> {
     /// gradient(angle)
     pub fn gstroke_circle<F>(&mut self, x: i64, y: i64, r: i64, gradient: F)
     where
-        F: Fn(f64) -> Element
+        F: Fn(f64) -> Element,
     {
         let mut error = -2 * r + 2;
 
@@ -651,16 +654,20 @@ impl<Element: Copy, Buffer: GraphicBuffer<Element>> Canvas<Element, Buffer> {
 
         while relx <= 0 {
             let q1_angle = ((y + rely) as f64).atan2((x + relx) as f64);
-            self.buffer.put_point(x + relx, y + rely, gradient(q1_angle));
+            self.buffer
+                .put_point(x + relx, y + rely, gradient(q1_angle));
 
             let q2_angle = ((y + rely) as f64).atan2((x - relx) as f64);
-            self.buffer.put_point(x - relx, y + rely, gradient(q2_angle));
+            self.buffer
+                .put_point(x - relx, y + rely, gradient(q2_angle));
 
             let q3_angle = ((y - rely) as f64).atan2((x + relx) as f64);
-            self.buffer.put_point(x + relx, y - rely, gradient(q3_angle));
+            self.buffer
+                .put_point(x + relx, y - rely, gradient(q3_angle));
 
             let q4_angle = ((y - rely) as f64).atan2((x - relx) as f64);
-            self.buffer.put_point(x - relx, y - rely, gradient(q4_angle));
+            self.buffer
+                .put_point(x - relx, y - rely, gradient(q4_angle));
 
             let next_error = 2 * error;
             if next_error >= 2 * relx + 1 {
@@ -702,7 +709,7 @@ impl<Element: Copy, Buffer: GraphicBuffer<Element>> Canvas<Element, Buffer> {
     /// Fills a circle around the given point using the given gradient(angle, radius)
     pub fn gfill_circle<F>(&mut self, x: i64, y: i64, r: i64, gradient: F)
     where
-        F: Fn(f64, f64) -> Element
+        F: Fn(f64, f64) -> Element,
     {
         let mut error = -2 * r + 2;
 
@@ -720,10 +727,9 @@ impl<Element: Copy, Buffer: GraphicBuffer<Element>> Canvas<Element, Buffer> {
                 let py = y - rely;
                 let py2 = y + rely;
                 for px in (x + relx)..(x - relx) {
-                    let distance = (
-                        ((px - x) as f64).powf(2.0) +
-                        ((py - y) as f64).powf(2.0)
-                    ).sqrt() / (r as f64);
+                    let distance = (((px - x) as f64).powf(2.0) + ((py - y) as f64).powf(2.0))
+                        .sqrt()
+                        / (r as f64);
 
                     let angle = ((py - y) as f64).atan2((px - x) as f64);
                     let angle2 = ((py2 - y) as f64).atan2((px - x) as f64);
