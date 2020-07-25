@@ -60,3 +60,16 @@ makes use of the framebuffer's support for alpha blending, which allows for a
 simple global motion-blur effect between frames:
 
 [[./assets/unstable-core.gif]]
+** coherence
+Coherence is a color-based cellular automaton which takes a field of colors and
+merges them into similar regions. I originally thought about doing this with
+photographs, but at the moment it works with randomly generated colors.
+
+In addition to the basic automata which spread by similar assimilating colors,
+there are a few special automata which are seeded into the corners. They start
+as idle until one of the other automata expand into them (they don't spread into
+the random field) and expand much faster than the color automata, which causes
+them to eradicate the others. This process often leaves behind small islands of
+noise colors depending upon how quickly everything spreads.
+
+[[./assets/coherence-small.gif]]
